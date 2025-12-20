@@ -2,173 +2,184 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>时间看板 & 专注模式</title>
+    <title>时间看板 - 自定义主题版</title>
     <style>
+        /* 这里定义了默认颜色，我们会通过 JS 修改这些值 */
         :root {
             --bg-color: #020617;
             --card-bg: rgba(30, 41, 59, 0.7);
+            --dot-empty: #1e293b;
             --dot-fill: #38bdf8;
             --text-main: #f8fafc;
-            --accent: #fb7185; /* 番茄钟的颜色 */
         }
 
         body {
             background-color: var(--bg-color);
-            background-image: radial-gradient(circle at 50% 50%, #1e1b4b 0%, #020617 100%);
             color: var(--text-main);
-            font-family: system-ui, sans-serif;
+            font-family: system-ui, -apple-system, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            padding: 20px;
+            padding: 40px 20px;
+            transition: background-color 0.3s ease;
         }
 
         .container {
             width: 100%;
             max-width: 600px;
             background: var(--card-bg);
-            padding: 2rem;
+            padding: 2.5rem;
             border-radius: 2rem;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
         }
 
-        /* 座右铭样式 */
-        #motto-container {
-            text-align: center;
+        /* 自定义菜单样式 */
+        .settings-menu {
             margin-bottom: 30px;
+            display: flex;
+            gap: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px 25px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .setting-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        input[type="color"] {
+            border: none;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            background: none;
         }
 
         #motto {
-            font-style: italic;
-            font-size: 1.2rem;
-            color: #bae6fd;
-            cursor: pointer;
-            border-bottom: 1px dashed #64748b;
-            display: inline-block;
-            padding: 5px;
-        }
-
-        /* 番茄钟样式 */
-        .pomodoro {
             text-align: center;
-            background: rgba(251, 113, 133, 0.1);
-            border: 1px solid var(--accent);
-            padding: 1.5rem;
-            border-radius: 1.5rem;
-            margin-top: 20px;
-        }
-
-        #pomodoro-time {
-            font-size: 3rem;
-            font-family: monospace;
-            color: var(--accent);
-            margin: 10px 0;
-        }
-
-        button {
-            background: var(--accent);
-            border: none;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            color: var(--dot-fill);
+            font-style: italic;
             cursor: pointer;
-            font-weight: bold;
-            transition: opacity 0.2s;
         }
 
-        button:hover { opacity: 0.8; }
+        .section { margin-bottom: 25px; }
+        .header { display: flex; justify-content: space-between; font-size: 0.85rem; color: #94a3b8; margin-bottom: 8px; }
+        .dots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10px, 1fr)); gap: 5px; }
+        .dot { aspect-ratio: 1; border-radius: 50%; background: var(--dot-empty); transition: transform 0.2s; }
+        .dot.active { background: var(--dot-fill); box-shadow: 0 0 8px var(--dot-fill); }
+        .dot:hover { transform: scale(1.5); background: #fff !important; }
 
-        /* 复用之前的点阵样式 */
-        .section { margin-bottom: 20px; }
-        .header { display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; margin-bottom: 5px;}
-        .dots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10px, 1fr)); gap: 4px; }
-        .dot { aspect-ratio: 1; border-radius: 50%; background: #1e293b; }
-        .dot.active { background: var(--dot-fill); box-shadow: 0 0 5px var(--dot-fill); }
+        h1 { font-size: 1.5rem; font-weight: 300; margin-bottom: 10px; opacity: 0.8; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div id="motto-container">
-        <div id="motto" title="点击修改座右铭">点击这里输入你的座右铭...</div>
+    <div class="settings-menu">
+        <div class="setting-item">
+            <label>背景色</label>
+            <input type="color" id="bg-picker" value="#020617">
+        </div>
+        <div class="setting-item">
+            <label>点阵色</label>
+            <input type="color" id="dot-picker" value="#38bdf8">
+        </div>
     </div>
 
-    <div id="sections"></div>
-
-    <div class="pomodoro">
-        <div style="font-size: 0.9rem; color: var(--accent);">POMODORO 专注模式</div>
-        <div id="pomodoro-time">25:00</div>
-        <button id="start-btn">开始专注</button>
+    <div class="container">
+        <div id="motto">点击这里输入你的座右铭...</div>
+        <div id="sections"></div>
     </div>
-</div>
 
 <script>
-    // --- 1. 座右铭功能 ---
+    // --- 1. 初始化数据 ---
+    const root = document.querySelector(':root');
+    const bgPicker = document.getElementById('bg-picker');
+    const dotPicker = document.getElementById('dot-picker');
     const mottoDisplay = document.getElementById('motto');
-    
-    // 初始化：从浏览器缓存读取
-    const savedMotto = localStorage.getItem('userMotto');
-    if (savedMotto) mottoDisplay.innerText = savedMotto;
 
+    // 从本地读取保存的颜色和座右铭
+    const savedBg = localStorage.getItem('cfg-bg') || '#020617';
+    const savedDot = localStorage.getItem('cfg-dot') || '#38bdf8';
+    const savedMotto = localStorage.getItem('userMotto') || '生活不在于呼吸的次数，而在于那些令你屏息的时刻。';
+
+    // 应用初始值
+    updateTheme('--bg-color', savedBg);
+    updateTheme('--dot-fill', savedDot);
+    bgPicker.value = savedBg;
+    dotPicker.value = savedDot;
+    mottoDisplay.innerText = savedMotto;
+
+    // --- 2. 监听颜色变化 ---
+    bgPicker.addEventListener('input', (e) => {
+        updateTheme('--bg-color', e.target.value);
+        localStorage.setItem('cfg-bg', e.target.value);
+    });
+
+    dotPicker.addEventListener('input', (e) => {
+        updateTheme('--dot-fill', e.target.value);
+        localStorage.setItem('cfg-dot', e.target.value);
+    });
+
+    function updateTheme(variable, value) {
+        root.style.setProperty(variable, value);
+    }
+
+    // --- 3. 座右铭点击修改 ---
     mottoDisplay.onclick = function() {
-        const newMotto = prompt("输入你的新座右铭：", mottoDisplay.innerText);
+        const newMotto = prompt("输入新的座右铭：", mottoDisplay.innerText);
         if (newMotto) {
             mottoDisplay.innerText = newMotto;
-            localStorage.setItem('userMotto', newMotto); // 存入浏览器
+            localStorage.setItem('userMotto', newMotto);
         }
     };
 
-    // --- 2. 时间点阵功能 (复用之前的逻辑) ---
-    function updateDots() {
+    // --- 4. 核心逻辑：年/月/日/时 可视化 ---
+    function render() {
         const now = new Date();
-        const container = document.getElementById('sections');
-        container.innerHTML = '';
-        
-        // 简化版逻辑：这里为了演示只放 日 和 时
-        createGrid("今日进度", 24, now.getHours());
-        createGrid("小时进度", 60, now.getMinutes());
+        const target = document.getElementById('sections');
+        target.innerHTML = '';
+
+        // 年
+        const startYear = new Date(now.getFullYear(), 0, 1);
+        const endYear = new Date(now.getFullYear() + 1, 0, 1);
+        const totalYear = Math.ceil((endYear - startYear)/(24*3600*1000));
+        const passYear = Math.floor((now - startYear)/(24*3600*1000));
+        createGrid("今年已流逝 (天)", totalYear, passYear);
+
+        // 月
+        const totalMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+        const passMonth = now.getDate();
+        createGrid("本月已流逝 (天)", totalMonth, passMonth);
+
+        // 日
+        createGrid("今日已流逝 (小时)", 24, now.getHours());
+
+        // 时
+        createGrid("当前小时流逝 (分钟)", 60, now.getMinutes());
     }
 
     function createGrid(title, total, passed) {
-        const gridHtml = `
+        const percent = ((passed/total)*100).toFixed(1);
+        const html = `
             <div class="section">
-                <div class="header"><span>${title}</span><span>${((passed/total)*100).toFixed(1)}%</span></div>
+                <div class="header"><span>${title}</span><span>${percent}%</span></div>
                 <div class="dots-grid">${Array(total).fill(0).map((_, i) => `<div class="dot ${i<passed?'active':''}"></div>`).join('')}</div>
             </div>`;
-        document.getElementById('sections').innerHTML += gridHtml;
+        document.getElementById('sections').innerHTML += html;
     }
 
-    // --- 3. 番茄钟功能 ---
-    let timeLeft = 25 * 60;
-    let timerId = null;
-
-    document.getElementById('start-btn').onclick = function() {
-        if (timerId) {
-            clearInterval(timerId);
-            timerId = null;
-            this.innerText = "开始专注";
-        } else {
-            this.innerText = "停止";
-            timerId = setInterval(() => {
-                timeLeft--;
-                const mins = Math.floor(timeLeft / 60);
-                const secs = timeLeft % 60;
-                document.getElementById('pomodoro-time').innerText = 
-                    `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
-                if (timeLeft <= 0) {
-                    clearInterval(timerId);
-                    alert("时间到！休息一下吧。");
-                }
-            }, 1000);
-        }
-    };
-
-    updateDots();
-    setInterval(updateDots, 60000);
+    render();
+    setInterval(render, 60000); // 每分钟刷新一次
 </script>
 
 </body>
